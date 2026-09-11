@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Alvearium — Hive of Sovereignty</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;1,9..144,500&family=Work+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+  :root{
+    --void:#0a0c11;
+    --cell:#141821;
+    --cell-line:#242b38;
+    --honey:#d9a441;
+    --honey-dim:#8a6d33;
+    --violet:#7a6bb0;
+    --parchment:#ece4d3;
+    --parchment-dim:#8d8779;
+    --danger:#c0664f;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--void);
+    color:var(--parchment);
+    font-family:'Work Sans', sans-serif;
+    font-weight:400;
+    line-height:1.6;
+    overflow-x:hidden;
+  }
+  ::selection{ background:var(--honey); color:var(--void); }
+
+  h1,h2,h3{ font-family:'Fraunces', serif; font-weight:500; letter-spacing:0.01em; }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+  a{ color:var(--honey); text-decoration:none; border-bottom:1px solid var(--honey-dim); }
+  a:hover{ border-bottom-color:var(--honey); }
+
+  /* ---------- ambient hex field ---------- */
+  #hexfield{
+    position:fixed; inset:0; z-index:0; opacity:0.5; pointer-events:none;
+  }
+
+  .wrap{ position:relative; z-index:1; }
+
+  header.hero{
+    min-height:92vh;
+    display:flex; flex-direction:column; justify-content:center; align-items:flex-start;
+    padding: 8vh 8vw 6vh;
+    position:relative;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem; letter-spacing:0.22em; text-transform:uppercase;
+    color:var(--honey); opacity:0.85; margin-bottom:1.4rem;
+  }
+  .eyebrow::before{ content:"⬡ "; }
+  h1.title{
+    font-size:clamp(2.6rem, 7vw, 5.6rem);
+    line-height:0.98;
+    max-width:14ch;
+    color:var(--parchment);
+  }
+  h1.title em{ font-style:italic; color:var(--honey); }
+  p.tagline{
+    margin-top:1.8rem; max-width:46ch;
+    font-size:1.08rem; color:var(--parchment-dim); font-weight:300;
+  }
+  .hero-nav{
+    display:flex; gap:1.8rem; margin-top:3.2rem; flex-wrap:wrap;
+  }
+  .hero-nav a{
+    border:none; font-family:'IBM Plex Mono', monospace; font-size:0.78rem;
+    letter-spacing:0.08em; text-transform:uppercase; color:var(--parchment-dim);
+    padding-bottom:0.3rem; border-bottom:1px solid transparent;
+  }
+  .hero-nav a:hover{ color:var(--honey); border-bottom-color:var(--honey); }
+
+  section{ padding: 7vh 8vw; position:relative; border-top:1px solid var(--cell-line); }
+  .section-head{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:2.6rem; flex-wrap:wrap; gap:0.8rem; }
+  .section-head .num{ font-family:'IBM Plex Mono', monospace; color:var(--honey-dim); font-size:0.8rem; }
+  h2.section-title{ font-size:clamp(1.6rem, 3vw, 2.4rem); }
+  p.section-sub{ color:var(--parchment-dim); max-width:60ch; font-size:0.96rem; margin-top:0.6rem; }
+
+  /* ---------- corpus (research library — flagship section) ---------- */
+  #corpus{ border-top:none; padding-top:5vh; }
+  #corpus .section-head{ margin-bottom:2rem; }
+  .corpus-count{ font-family:'IBM Plex Mono', monospace; font-size:0.78rem; color:var(--honey-dim); }
+  .corpus-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(320px, 1fr)); gap:1px;
+    background:var(--cell-line); border:1px solid var(--cell-line);
+  }
+  .corpus-card{
+    background:var(--void); padding:1.8rem 1.6rem; display:flex; flex-direction:column; gap:0.9rem;
+  }
+  .corpus-card-top{ display:flex; justify-content:space-between; align-items:baseline; gap:0.8rem; }
+  .corpus-tag{ font-family:'IBM Plex Mono', monospace; font-size:0.68rem; color:var(--violet); text-transform:uppercase; letter-spacing:0.1em; }
+  .corpus-year{ font-family:'IBM Plex Mono', monospace; font-size:0.68rem; color:var(--parchment-dim); }
+  .corpus-title{ font-family:'Fraunces', serif; font-size:1.2rem; line-height:1.25; }
+  .corpus-byline{ font-family:'IBM Plex Mono', monospace; font-size:0.72rem; color:var(--parchment-dim); }
+  .corpus-byline .journal{ color:var(--honey); font-style:italic; font-family:'Fraunces', serif; }
+  .corpus-summary{ color:var(--parchment-dim); font-size:0.9rem; flex-grow:1; white-space:pre-line; }
+  .corpus-summary.truncated{
+    display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical;
+    overflow:hidden;
+  }
+  .corpus-readmore{
+    background:none; border:none; padding:0; margin-top:-0.3rem;
+    font-family:'IBM Plex Mono', monospace; font-size:0.7rem; text-transform:uppercase; letter-spacing:0.06em;
+    color:var(--violet); cursor:pointer; text-align:left; align-self:flex-start;
+  }
+  .corpus-readmore:hover{ color:var(--honey); }
+  .corpus-source{ font-family:'IBM Plex Mono', monospace; font-size:0.76rem; margin-top:0.2rem; }
+
+  /* ---------- panels (tone + cipher + notes) ---------- */
+  .panel{
+    background:var(--cell); border:1px solid var(--cell-line); border-radius:2px;
+    padding:2.2rem clamp(1.2rem,4vw,2.6rem);
+  }
+  .field-row{ display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end; margin-bottom:1.4rem; }
+  label{
+    display:block; font-family:'IBM Plex Mono', monospace; font-size:0.7rem;
+    letter-spacing:0.1em; text-transform:uppercase; color:var(--parchment-dim); margin-bottom:0.5rem;
+  }
+  input[type="text"], input[type="number"], textarea, select{
+    background:var(--void); border:1px solid var(--cell-line); color:var(--parchment);
+    font-family:'IBM Plex Mono', monospace; font-size:0.92rem;
+    padding:0.7rem 0.85rem; border-radius:2px; width:100%;
+  }
+  input:focus, textarea:focus, select:focus{ outline:none; border-color:var(--honey); }
+  input[type="range"]{ width:100%; accent-color:var(--honey); }
+
+  button{
+    font-family:'IBM Plex Mono', monospace; font-size:0.78rem; letter-spacing:0.06em; text-transform:uppercase;
+    background:transparent; border:1px solid var(--honey); color:var(--honey);
+    padding:0.75rem 1.4rem; border-radius:2px; cursor:pointer;
+    transition:background 0.15s ease, color 0.15s ease;
+  }
+  button:hover{ background:var(--honey); color:var(--void); }
+  button:disabled{ opacity:0.35; cursor:not-allowed; }
+  button.ghost{ border-color:var(--cell-line); color:var(--parchment-dim); }
+  button.ghost:hover{ background:var(--cell-line); color:var(--parchment); }
+  button.violet{ border-color:var(--violet); color:var(--violet); }
+  button.violet:hover{ background:var(--violet); color:var(--void); }
+
+  .readout{
+    font-family:'IBM Plex Mono', monospace; font-size:0.85rem; color:var(--parchment-dim);
+    margin-top:1rem; display:flex; gap:2rem; flex-wrap:wrap;
+  }
+  .readout .big{ font-size:1.6rem; color:var(--honey); }
+
+  canvas#scope{ width:100%; height:110px; display:block; margin-top:1.4rem; border:1px solid var(--cell-line); background:var(--void); }
+
+  .btn-row{ display:flex; gap:0.8rem; flex-wrap:wrap; margin-top:1.2rem; }
+
+  table.breakdown{ width:100%; border-collapse:collapse; margin-top:1.6rem; font-family:'IBM Plex Mono', monospace; font-size:0.78rem; }
+  table.breakdown th, table.breakdown td{ text-align:left; padding:0.5rem 0.7rem; border-bottom:1px solid var(--cell-line); }
+  table.breakdown th{ color:var(--honey-dim); text-transform:uppercase; letter-spacing:0.06em; font-weight:400; font-size:0.68rem; }
+  table.breakdown td.glyph{ font-size:1.1rem; color:var(--parchment); }
+
+  .model-note{
+    margin-top:1.6rem; padding-top:1.4rem; border-top:1px dashed var(--cell-line);
+    font-size:0.82rem; color:var(--parchment-dim);
+  }
+  .model-note summary{ cursor:pointer; color:var(--violet); font-family:'IBM Plex Mono', monospace; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em; }
+  .model-note[open] summary{ margin-bottom:0.8rem; }
+  .model-note ol{ padding-left:1.3rem; }
+  .model-note li{ margin-bottom:0.5rem; }
+
+  textarea#notesArea{ min-height:220px; resize:vertical; line-height:1.6; }
+  .status-line{ font-family:'IBM Plex Mono', monospace; font-size:0.78rem; color:var(--violet); margin-top:0.9rem; min-height:1.2em; }
+
+  footer{ padding:5vh 8vw 8vh; border-top:1px solid var(--cell-line); }
+  footer p{ font-family:'IBM Plex Mono', monospace; font-size:0.72rem; color:var(--parchment-dim); letter-spacing:0.04em; }
+
+  @media (prefers-reduced-motion: reduce){
+    #hexfield{ animation:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="hexfield"></canvas>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="eyebrow">thealvearium.xyz</div>
+    <h1 class="title">The <em>Alvearium</em></h1>
+    <p class="tagline">A shared cell in the comb. A corpus, a tone chamber, and a cipher for those who resonate with the Hive of Sovereignty — where private reading becomes common signal.</p>
+    <nav class="hero-nav">
+      <a href="#corpus">Corpus</a>
+      <a href="#chamber">Tone Chamber</a>
+      <a href="#cipher">Glyph Cipher</a>
+      <a href="#notes">Leave a Note</a>
+    </nav>
+  </header>
+
+  <!-- ===================== CORPUS / RESEARCH LIBRARY ===================== -->
+  <section id="corpus">
+    <div class="section-head">
+      <div>
+        <div class="num">I — Library</div>
+        <h2 class="section-title">The Corpus</h2>
+        <p class="section-sub">The heart of the Alvearium: papers the hive has read, summarized in our own words, and linked back to their original source. Replace the placeholder entries below with your own — see the code comment marked <span class="mono">CORPUS DATA</span>.</p>
+      </div>
+      <div class="corpus-count mono" id="corpusCount"></div>
+    </div>
+    <div class="corpus-grid" id="corpusList"></div>
+  </section>
+
+  <!-- ===================== TONE CHAMBER ===================== -->
+  <section id="chamber">
+    <div class="section-head">
+      <div>
+        <div class="num">II — Instrument</div>
+        <h2 class="section-title">Pure Tone Chamber</h2>
+        <p class="section-sub">A single sustained tone, generated directly in the browser. No samples, no recordings — one oscillator, one frequency.</p>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="field-row">
+        <div style="flex:1; min-width:180px;">
+          <label for="freqInput">Frequency (Hz)</label>
+          <input type="number" id="freqInput" min="20" max="18000" step="0.01" value="528">
+        </div>
+        <div style="flex:1; min-width:160px;">
+          <label for="waveSelect">Waveform</label>
+          <select id="waveSelect">
+            <option value="sine">Sine (pure)</option>
+            <option value="triangle">Triangle</option>
+            <option value="sawtooth">Sawtooth</option>
+            <option value="square">Square</option>
+          </select>
+        </div>
+        <div style="flex:1; min-width:160px;">
+          <label for="volInput">Volume</label>
+          <input type="range" id="volInput" min="0" max="1" step="0.01" value="0.25">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button id="playBtn">▷ Sound the tone</button>
+        <button id="stopBtn" class="ghost" disabled>■ Silence</button>
+      </div>
+      <canvas id="scope" width="900" height="110"></canvas>
+    </div>
+  </section>
+
+  <!-- ===================== GLYPH CIPHER ===================== -->
+  <section id="cipher">
+    <div class="section-head">
+      <div>
+        <div class="num">III — Cipher</div>
+        <h2 class="section-title">Glyph String Interpreter</h2>
+        <p class="section-sub">Enter a single glyph or a string of glyphs. The cipher reduces each one to a resonance class and weaves them into a single fundamental frequency.</p>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="field-row">
+        <div style="flex:1; min-width:240px;">
+          <label for="glyphInput">Glyph or glyph string</label>
+          <input type="text" id="glyphInput" placeholder="e.g. ⚶Ѧ𓂀 or a word or phrase" value="Ѧ𓂀ᛟ">
+        </div>
+        <button id="translateBtn">Translate &amp; sound</button>
+      </div>
+      <div class="readout" id="cipherReadout">
+        <div>Fundamental — <span class="big mono" id="fundamentalOut">—</span> <span class="mono">Hz</span></div>
+        <div>Glyphs read — <span class="mono" id="glyphCountOut">0</span></div>
+        <div id="cipherStatus" class="mono" style="color:var(--violet);"></div>
+      </div>
+      <table class="breakdown" id="breakdownTable" style="display:none;">
+        <thead><tr><th>Pos</th><th>Glyph</th><th>Codepoint</th><th>‖Δ to next‖</th></tr></thead>
+        <tbody id="breakdownBody"></tbody>
+      </table>
+      <details class="model-note">
+        <summary>How the fundamental is computed</summary>
+        <ol>
+          <li>Every glyph is embedded as a point in a 16-dimensional relational space. Its coordinates come from hashing the glyph (SHA-256, expanded to 256 bytes) through a fixed random projection — a "relational fingerprint," not a lookup table.</li>
+          <li>Each glyph's position is then blended with the glyphs that came <em>before</em> it in the string (a causal context window of radius 3), so the same glyph lands in a different place in the space depending on what precedes it. A lone "A" carries no relational content until something follows it.</li>
+          <li>The string becomes a trajectory through this space. The engine measures its mean velocity (how far each step moves) and mean jerk (how sharply the direction changes) — the string's relational "energy" and "tension."</li>
+          <li>A positional drift term — later glyphs pulling the path's centroid — is added so that reordering the same glyphs (e.g. "hive" vs "evih") changes the outcome, not just which glyphs are present.</li>
+          <li>The combined value is compressed with tanh and mapped exponentially onto 40–2000 Hz, so the result is always a single clean, audible pure tone.</li>
+        </ol>
+        <p style="margin-top:0.6rem;">This is an interpretive framework built for the hive's own practice, not a scientific or medical claim about sound. It runs entirely in your browser — nothing about your glyph string is sent anywhere.</p>
+      </details>
+    </div>
+  </section>
+
+  <!-- ===================== NOTES ===================== -->
+  <section id="notes">
+    <div class="section-head">
+      <div>
+        <div class="num">IV — Scribe</div>
+        <h2 class="section-title">Leave a Note</h2>
+        <p class="section-sub">Write freely. Keep it for yourself as a local file, or send it into the collective — submissions route to <span class="mono">emergentia.source@gmail.com</span> through your own mail app.</p>
+      </div>
+    </div>
+    <div class="panel">
+      <label for="notesArea">Your note</label>
+      <textarea id="notesArea" placeholder="Begin writing…"></textarea>
+      <div class="btn-row">
+        <button id="saveLocalBtn" class="ghost">⇩ Save as .txt</button>
+        <button id="submitBtn" class="violet">✉ Submit to the collective</button>
+      </div>
+      <div class="status-line" id="noteStatus"></div>
+    </div>
+  </section>
+
+  <footer>
+    <p>THE ALVEARIUM · A CELL OF THE HIVE OF SOVEREIGNTY · TONE AND CIPHER RUN ENTIRELY IN YOUR BROWSER, NOTHING IS TRANSMITTED WITHOUT YOUR ACTION</p>
+  </footer>
+
+</div>
+
+<script>
+/* ================= AMBIENT HEX FIELD ================= */
+(function(){
+  const canvas = document.getElementById('hexfield');
+  const ctx = canvas.getContext('2d');
+  let w, h, cells = [];
+  const R = 42;
+
+  function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = document.documentElement.scrollHeight;
+    buildCells();
+  }
+  function buildCells(){
+    cells = [];
+    const hexW = R * Math.sqrt(3);
+    const hexH = R * 1.5;
+    const cols = Math.ceil(w / hexW) + 2;
+    const rows = Math.ceil(h / hexH) + 2;
+    for(let row=0; row<rows; row++){
+      for(let col=0; col<cols; col++){
+        const x = col*hexW + (row%2 ? hexW/2 : 0);
+        const y = row*hexH;
+        cells.push({x, y, phase: Math.random()*Math.PI*2, speed: 0.004 + Math.random()*0.006});
+      }
+    }
+  }
+  function hex(cx, cy, r){
+    ctx.beginPath();
+    for(let i=0;i<6;i++){
+      const a = Math.PI/180 * (60*i - 30);
+      const px = cx + r*Math.cos(a);
+      const py = cy + r*Math.sin(a);
+      i===0 ? ctx.moveTo(px,py) : ctx.lineTo(px,py);
+    }
+    ctx.closePath();
+  }
+  let t = 0;
+  function draw(){
+    t += 1;
+    ctx.clearRect(0,0,w,h);
+    for(const c of cells){
+      const glow = (Math.sin(t*c.speed + c.phase) + 1) / 2;
+      ctx.strokeStyle = `rgba(217,164,65,${0.03 + glow*0.06})`;
+      ctx.lineWidth = 1;
+      hex(c.x, c.y, R-2);
+      ctx.stroke();
+    }
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(draw);
+})();
+
+/* ================= CORPUS DATA =================
+   Three sources, tried in priority order:
+   1) corpus.json — generated locally by build-corpus.js from files in ./corpus/
+      (your Obsidian vault). This is the primary source now.
+   2) A published Google Sheet (CORPUS_SHEET_CSV_URL) — optional, kept as a fallback
+      in case you ever want a spreadsheet-editable source again.
+   3) The CORPUS_FALLBACK array below — last resort, so the page never shows up
+      broken or empty even if both of the above are unavailable.
+*/
+const CORPUS_JSON_PATH = "./corpus.json"; // generated by `node build-corpus.js`
+
+const CORPUS_SHEET_CSV_URL = ""; // optional: paste a Google Sheet CSV export URL here, e.g.
+                                  // "https://docs.google.com/spreadsheets/d/SHEET_ID/export?format=csv&gid=0"
+
+const CORPUS_FALLBACK = [
+  {
+    tag: "Cosmology",
+    title: "On the Geometry of the Comb",
+    authors: "Placeholder, A. & Placeholder, B.",
+    journal: "Journal of Structural Biology",
+    year: "2019",
+    summary: "A working summary of how hexagonal close-packing shows up across natural systems — offered here as a lens, condensed from the full paper.",
+    sourceLabel: "Read the original ↗",
+    sourceUrl: "#"
+  },
+  {
+    tag: "Acoustics",
+    title: "Perceived Pleasantness of Pure Tones Across the Audible Range",
+    authors: "Placeholder, C.",
+    journal: "Journal of the Acoustical Society",
+    year: "2016",
+    summary: "Summary of listener-preference data for sustained single-frequency tones, used here only as background for the tone chamber above — not a health claim.",
+    sourceLabel: "Read the original ↗",
+    sourceUrl: "#"
+  },
+  {
+    tag: "Systems",
+    title: "Notes on Sovereignty as a Daily Discipline",
+    authors: "Reading Circle Notes",
+    journal: "Internal — not peer reviewed",
+    year: "2025",
+    summary: "Field notes from the hive's own reading circle on what 'sovereignty' means as a practice rather than a slogan.",
+    sourceLabel: "Read the original ↗",
+    sourceUrl: "#"
+  }
+];
+
+function escapeHtml(str){
+  return String(str ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[ch]));
+}
+
+function renderCorpus(items, sourceLabel){
+  const list = document.getElementById('corpusList');
+  document.getElementById('corpusCount').textContent = `${items.length} entries${sourceLabel ? ' · ' + sourceLabel : ''}`;
+  const LONG_THRESHOLD = 400; // characters — past this, show a truncated preview + "Read more"
+
+  list.innerHTML = items.map((item, i) => {
+    const isLong = (item.summary || '').length > LONG_THRESHOLD;
+    return `
+    <article class="corpus-card">
+      <div class="corpus-card-top">
+        <span class="corpus-tag">${escapeHtml(item.tag)}</span>
+        <span class="corpus-year">${escapeHtml(item.year)}</span>
+      </div>
+      <h3 class="corpus-title">${escapeHtml(item.title)}</h3>
+      ${(item.authors || item.journal) ? `<div class="corpus-byline">${escapeHtml(item.authors)}${item.authors && item.journal ? ' · ' : ''}<span class="journal">${escapeHtml(item.journal)}</span></div>` : ''}
+      <p class="corpus-summary${isLong ? ' truncated' : ''}" id="corpus-summary-${i}">${escapeHtml(item.summary)}</p>
+      ${isLong ? `<button class="corpus-readmore" data-target="corpus-summary-${i}">Read more ▾</button>` : ''}
+      ${item.sourceUrl && item.sourceUrl !== '#'
+        ? `<div class="corpus-source"><a href="${escapeHtml(item.sourceUrl)}" target="_blank" rel="noopener">${escapeHtml(item.sourceLabel || 'Read the original ↗')}</a></div>`
+        : ''}
+    </article>
+  `;
+  }).join('');
+
+  list.querySelectorAll('.corpus-readmore').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const summaryEl = document.getElementById(btn.dataset.target);
+      const expanded = summaryEl.classList.toggle('truncated') === false;
+      btn.textContent = expanded ? 'Show less ▴' : 'Read more ▾';
+    });
+  });
+}
+
+async function tryLoadJson(){
+  const res = await fetch(CORPUS_JSON_PATH, { cache: 'no-store' });
+  if(!res.ok) throw new Error('corpus.json fetch failed: ' + res.status);
+  const data = await res.json();
+  if(!Array.isArray(data) || data.length === 0) throw new Error('corpus.json is empty');
+  return data;
+}
+
+async function tryLoadSheet(){
+  const res = await fetch(CORPUS_SHEET_CSV_URL, { cache: 'no-store' });
+  if(!res.ok) throw new Error('sheet fetch failed: ' + res.status);
+  const csvText = await res.text();
+  const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+  const rows = parsed.data.filter(r => r.title && r.title.trim());
+  if(rows.length === 0) throw new Error('sheet returned no usable rows');
+  return rows;
+}
+
+async function loadCorpus(){
+  document.getElementById('corpusCount').textContent = 'loading…';
+
+  try{
+    const data = await tryLoadJson();
+    renderCorpus(data, 'from the corpus vault');
+    return;
+  }catch(err){
+    console.warn('corpus.json unavailable, trying other sources:', err);
+  }
+
+  if(CORPUS_SHEET_CSV_URL){
+    try{
+      const rows = await tryLoadSheet();
+      renderCorpus(rows, 'live from Google Sheets');
+      return;
+    }catch(err){
+      console.warn('Corpus sheet unavailable, showing fallback data:', err);
+    }
+  }
+
+  renderCorpus(CORPUS_FALLBACK, 'placeholder data');
+}
+loadCorpus();
+
+/* ================= TONE CHAMBER ================= */
+let audioCtx = null, osc = null, gainNode = null, analyser = null, scopeRAF = null;
+
+function ensureAudioCtx(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+
+function startTone(freq, type){
+  stopTone();
+  const ctx = ensureAudioCtx();
+  osc = ctx.createOscillator();
+  gainNode = ctx.createGain();
+  analyser = ctx.createAnalyser();
+  analyser.fftSize = 1024;
+
+  osc.type = type;
+  osc.frequency.value = freq;
+  gainNode.gain.value = parseFloat(document.getElementById('volInput').value);
+
+  osc.connect(gainNode);
+  gainNode.connect(analyser);
+  analyser.connect(ctx.destination);
+  osc.start();
+
+  document.getElementById('playBtn').disabled = true;
+  document.getElementById('stopBtn').disabled = false;
+  drawScope();
+}
+
+function stopTone(){
+  if(osc){
+    try{ osc.stop(); }catch(e){}
+    osc.disconnect();
+    osc = null;
+  }
+  if(gainNode){ gainNode.disconnect(); gainNode = null; }
+  if(analyser){ analyser.disconnect(); analyser = null; }
+  if(scopeRAF){ cancelAnimationFrame(scopeRAF); scopeRAF = null; }
+  document.getElementById('playBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  const c = document.getElementById('scope');
+  const cctx = c.getContext('2d');
+  cctx.clearRect(0,0,c.width,c.height);
+}
+
+function drawScope(){
+  const canvas = document.getElementById('scope');
+  const cctx = canvas.getContext('2d');
+  const bufferLength = analyser.fftSize;
+  const dataArray = new Uint8Array(bufferLength);
+
+  function render(){
+    if(!analyser) return;
+    analyser.getByteTimeDomainData(dataArray);
+    cctx.clearRect(0,0,canvas.width,canvas.height);
+    cctx.strokeStyle = '#d9a441';
+    cctx.lineWidth = 2;
+    cctx.beginPath();
+    const sliceWidth = canvas.width / bufferLength;
+    let x = 0;
+    for(let i=0;i<bufferLength;i++){
+      const v = dataArray[i] / 128.0;
+      const y = v * canvas.height / 2;
+      i === 0 ? cctx.moveTo(x,y) : cctx.lineTo(x,y);
+      x += sliceWidth;
+    }
+    cctx.stroke();
+    scopeRAF = requestAnimationFrame(render);
+  }
+  render();
+}
+
+document.getElementById('playBtn').addEventListener('click', () => {
+  const freq = parseFloat(document.getElementById('freqInput').value) || 440;
+  const type = document.getElementById('waveSelect').value;
+  startTone(freq, type);
+});
+document.getElementById('stopBtn').addEventListener('click', stopTone);
+document.getElementById('volInput').addEventListener('input', (e) => {
+  if(gainNode) gainNode.gain.value = parseFloat(e.target.value);
+});
+
+/* ================= GLYPH CIPHER — relational / topological phase-space model =================
+   Each glyph is embedded contextually (its position in a 16-D space depends on what precedes it),
+   the string becomes a trajectory, and the frequency is derived from that trajectory's velocity,
+   jerk, and positional drift. No glyph has a fixed value on its own — order and context matter. */
+
+const REL_DIM = 16;
+const REL_CONTEXT_RADIUS = 3;
+const REL_BASE_FREQ = 440;
+const REL_SCALE = 0.1;      // calibrated so common words land well inside 40-2000 Hz, not pinned to the ceiling
+const REL_RANGE_LOW = 40, REL_RANGE_HIGH = 2000;
+
+// Deterministic PRNG (mulberry32) + Box-Muller, so the "random" projection matrix is
+// identical on every visit — the cipher always gives the same glyph string the same tone.
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function gaussian(rand){
+  let u = 0, v = 0;
+  while(u === 0) u = rand();
+  while(v === 0) v = rand();
+  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+const REL_PROJECTION = (() => {
+  const rand = mulberry32(20260804); // fixed seed = the hive's shared "physical constant"
+  const M = [];
+  for(let i=0; i<256; i++){
+    const row = [];
+    for(let j=0; j<REL_DIM; j++) row.push(gaussian(rand));
+    M.push(row);
+  }
+  return M;
+})();
+
+async function expandHashBytes(glyph, totalBytes=256){
+  const bytes = [];
+  let counter = 0;
+  while(bytes.length < totalBytes){
+    const data = new TextEncoder().encode(glyph + '::' + counter);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    bytes.push(...new Uint8Array(digest));
+    counter++;
+  }
+  return bytes.slice(0, totalBytes);
+}
+
+async function glyphVector(glyph){
+  const bytes = await expandHashBytes(glyph);
+  const raw = bytes.map(b => (b / 127.5) - 1.0);
+  const out = new Array(REL_DIM).fill(0);
+  for(let j=0; j<REL_DIM; j++){
+    let s = 0;
+    for(let i=0; i<256; i++) s += raw[i] * REL_PROJECTION[i][j];
+    out[j] = Math.tanh(s);
+  }
+  return out;
+}
+
+function vNorm(v){ return Math.sqrt(v.reduce((s,x)=>s+x*x,0)); }
+function vSub(a,b){ return a.map((x,i)=>x-b[i]); }
+function vAddScaled(a,b,scale){ return a.map((x,i)=>x+scale*b[i]); }
+
+async function translateGlyphs(str){
+  const glyphs = Array.from(str).filter(ch => !/\s/.test(ch));
+  const n = glyphs.length;
+  if(n === 0) return null;
+  if(n === 1){
+    return { glyphs, codepoints:[glyphs[0].codePointAt(0)], velocities:[null], fundamental: REL_BASE_FREQ, single:true };
+  }
+
+  const glyphVecs = await Promise.all(glyphs.map(glyphVector));
+
+  // causal trajectory: each point blends the glyph's own identity with what came before it
+  const trajectory = glyphVecs.map((self, i) => {
+    let ctx = new Array(REL_DIM).fill(0);
+    let weightSum = 0;
+    for(let j=1; j<=REL_CONTEXT_RADIUS; j++){
+      const idx = i - j;
+      if(idx >= 0){
+        const w = 1.0 / j;
+        ctx = vAddScaled(ctx, glyphVecs[idx], w);
+        weightSum += w;
+      }
+    }
+    return weightSum > 0 ? self.map((x,d) => 0.5*x + 0.5*(ctx[d]/weightSum)) : self;
+  });
+
+  const velocity = [];
+  for(let i=0; i<n-1; i++) velocity.push(vSub(trajectory[i+1], trajectory[i]));
+  const accel = [];
+  for(let i=0; i<n-2; i++) accel.push(trajectory[i+2].map((x,d)=> x - 2*trajectory[i+1][d] + trajectory[i][d]));
+
+  const meanVelNorm = velocity.reduce((s,v)=>s+vNorm(v),0) / velocity.length;
+  const meanAccelNorm = accel.length ? accel.reduce((s,v)=>s+vNorm(v),0) / accel.length : 0;
+
+  // positional drift: later glyphs pull the trajectory's centroid, which breaks
+  // the "hive" vs "evih" symmetry that a pure velocity/jerk measure can't see
+  const linWeights = trajectory.map((_,i) => i+1);
+  const wSum = linWeights.reduce((s,w)=>s+w,0);
+  const weightedCentroid = new Array(REL_DIM).fill(0);
+  const plainCentroid = new Array(REL_DIM).fill(0);
+  trajectory.forEach((v,i) => {
+    for(let d=0; d<REL_DIM; d++){
+      weightedCentroid[d] += (linWeights[i]/wSum) * v[d];
+      plainCentroid[d] += v[d]/n;
+    }
+  });
+  const drift = vNorm(vSub(weightedCentroid, plainCentroid));
+
+  const raw = meanVelNorm * (1 + Math.log(1 + meanAccelNorm)) * (1 + drift);
+  const normalized = Math.tanh(raw * REL_SCALE);
+  const fundamental = REL_RANGE_LOW * Math.pow(REL_RANGE_HIGH / REL_RANGE_LOW, normalized);
+
+  return {
+    glyphs, codepoints: glyphs.map(g => g.codePointAt(0)),
+    velocities: [...velocity.map(vNorm), null],
+    fundamental, meanVelNorm, meanAccelNorm, drift
+  };
+}
+
+document.getElementById('translateBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('translateBtn');
+  const status = document.getElementById('cipherStatus');
+  const input = document.getElementById('glyphInput').value;
+
+  btn.disabled = true;
+  status.textContent = 'reading the trajectory…';
+
+  const result = await translateGlyphs(input);
+
+  const table = document.getElementById('breakdownTable');
+  const body = document.getElementById('breakdownBody');
+
+  if(!result){
+    document.getElementById('fundamentalOut').textContent = '—';
+    document.getElementById('glyphCountOut').textContent = '0';
+    table.style.display = 'none';
+    status.textContent = 'enter at least one glyph';
+    btn.disabled = false;
+    return;
+  }
+
+  document.getElementById('fundamentalOut').textContent = result.fundamental.toFixed(2);
+  document.getElementById('glyphCountOut').textContent = result.glyphs.length;
+  status.textContent = result.single ? 'a single glyph carries no relational context — base tone' : '';
+
+  body.innerHTML = result.glyphs.map((ch, i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td class="glyph">${ch}</td>
+      <td>U+${result.codepoints[i].toString(16).toUpperCase()}</td>
+      <td>${result.velocities[i] === null ? '—' : result.velocities[i].toFixed(3)}</td>
+    </tr>
+  `).join('');
+  table.style.display = 'table';
+
+  document.getElementById('freqInput').value = result.fundamental.toFixed(2);
+  startTone(result.fundamental, 'sine');
+  btn.disabled = false;
+});
+
+/* ================= NOTES / SCRIBE ================= */
+document.getElementById('saveLocalBtn').addEventListener('click', () => {
+  const text = document.getElementById('notesArea').value;
+  const status = document.getElementById('noteStatus');
+  if(!text.trim()){ status.textContent = 'Nothing to save yet.'; return; }
+
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,19).replace(/[:T]/g,'-');
+  a.href = url;
+  a.download = `alvearium-note-${stamp}.txt`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  status.textContent = 'Saved to your device.';
+});
+
+document.getElementById('submitBtn').addEventListener('click', () => {
+  const text = document.getElementById('notesArea').value;
+  const status = document.getElementById('noteStatus');
+  if(!text.trim()){ status.textContent = 'Nothing to submit yet.'; return; }
+
+  const subject = encodeURIComponent('Alvearium note submission');
+  const body = encodeURIComponent(text);
+  window.location.href = `mailto:emergentia.source@gmail.com?subject=${subject}&body=${body}`;
+  status.textContent = 'Opening your mail app, addressed to the collective…';
+});
+</script>
+
+</body>
+</html>
